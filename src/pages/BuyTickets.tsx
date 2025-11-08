@@ -1,19 +1,31 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
+("use client");
+
+import { DaimoPayButton } from "@daimo/pay";
 
 const BuyTickets: React.FC = () => {
-  const [ticketType, setTicketType] = useState<"earlybird" | "regular">("earlybird");
+  const [ticketType, setTicketType] = useState<"earlybird" | "regular">(
+    "earlybird"
+  );
   const [quantity, setQuantity] = useState(1);
-  const [buyerInfo, setBuyerInfo] = useState({ name: "", email: "", phone: "" });
-  const [participants, setParticipants] = useState<{ name: string; email: string }[]>([
-    { name: "", email: "" },
-  ]);
+  const [buyerInfo, setBuyerInfo] = useState({
+    name: "",
+    email: "",
+    phone: "",
+  });
+  const [participants, setParticipants] = useState<
+    { name: string; email: string }[]
+  >([{ name: "", email: "" }]);
   const [loading, setLoading] = useState(false);
 
   const ticketPrices = {
     earlybird: 999,
     regular: 1999,
   };
+
+  const [payId, setPayId] = useState<string>("");
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   // handle quantity update
   const handleQuantityChange = (type: "inc" | "dec") => {
@@ -23,7 +35,10 @@ const BuyTickets: React.FC = () => {
 
       // Adjust participants array
       if (diff > 0) {
-        setParticipants((prev) => [...prev, ...Array(diff).fill({ name: "", email: "" })]);
+        setParticipants((prev) => [
+          ...prev,
+          ...Array(diff).fill({ name: "", email: "" }),
+        ]);
       } else if (diff < 0) {
         setParticipants((prev) => prev.slice(0, newQuantity));
       }
@@ -39,91 +54,102 @@ const BuyTickets: React.FC = () => {
     setBuyerInfo((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleParticipantChange = (index: number, field: string, value: string) => {
+  const handleParticipantChange = (
+    index: number,
+    field: string,
+    value: string
+  ) => {
     const updated = [...participants];
     updated[index][field as "name" | "email"] = value;
     setParticipants(updated);
   };
 
   const loadRazorpayScript = () => {
-  return new Promise((resolve) => {
-    const existingScript = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
-    if (existingScript) return resolve(true);
+    return new Promise((resolve) => {
+      const existingScript = document.querySelector(
+        'script[src="https://checkout.razorpay.com/v1/checkout.js"]'
+      );
+      if (existingScript) return resolve(true);
 
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
-  });
-};
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
 
-const handlePayWithINR = async () => {
-  const isLoaded = await loadRazorpayScript();
-  if (!isLoaded) {
-    alert("Failed to load Razorpay SDK. Please check your network.");
-    return;
-  }
+  const handlePayWithINR = async () => {
+    const isLoaded = await loadRazorpayScript();
+    if (!isLoaded) {
+      alert("Failed to load Razorpay SDK. Please check your network.");
+      return;
+    }
 
-  try {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const ticketId = ticketType === "earlybird" ? 1 : 2;
+      const ticketId = ticketType === "earlybird" ? 1 : 2;
 
-    const payload = {
-      ticketId,
-      buyerName: buyerInfo.name,
-      buyerEmail: buyerInfo.email,
-      buyerPhone: buyerInfo.phone,
-      participants: participants.map((p, i) => ({
-        ...p,
-        isBuyer: i === 0,
-      })),
-      quantity,
-    };
+      const payload = {
+        ticketId,
+        buyerName: buyerInfo.name,
+        buyerEmail: buyerInfo.email,
+        buyerPhone: buyerInfo.phone,
+        participants: participants.map((p, i) => ({
+          ...p,
+          isBuyer: i === 0,
+        })),
+        quantity,
+      };
 
-    const { data } = await axios.post("http://localhost:3000/payments/order", payload);
+      const { data } = await axios.post(
+        "http://localhost:3000/payments/order",
+        payload
+      );
 
-    const options = {
-      key: "rzp_test_RZlakbieFC6xU8", // 🔑 replace with your actual key
-      amount: data.amount * 100,
-      currency: data.currency,
-      name: "ETHMumbai",
-      description: "Conference Ticket Purchase",
-      order_id: data.razorpayOrderId,
-      handler: async (response: any) => {
-        try {
-          await axios.post("http://localhost:3000/payments/verify", {
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-          });
-          alert("✅ Payment Successful!");
-        } catch (err) {
-          console.error("Verification failed", err);
-          alert("❌ Payment verification failed!");
-        }
-      },
-      prefill: {
-        name: buyerInfo.name,
-        email: buyerInfo.email,
-        contact: buyerInfo.phone,
-      },
-      theme: { color: "#000000" },
-    };
+      const options = {
+        key: "rzp_test_RZlakbieFC6xU8", // 🔑 replace with your actual key
+        amount: data.amount * 100,
+        currency: data.currency,
+        name: "ETHMumbai",
+        description: "Conference Ticket Purchase",
+        order_id: data.razorpayOrderId,
+        handler: async (response: any) => {
+          try {
+            await axios.post("http://localhost:3000/payments/verify", {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            });
+            alert("✅ Payment Successful!");
+          } catch (err) {
+            console.error("Verification failed", err);
+            alert("❌ Payment verification failed!");
+          }
+        },
+        prefill: {
+          name: buyerInfo.name,
+          email: buyerInfo.email,
+          contact: buyerInfo.phone,
+        },
+        theme: { color: "#000000" },
+      };
 
-    const rzp = new (window as any).Razorpay(options);
-    rzp.open();
-  } catch (error) {
-    console.error("Payment error:", error);
-    alert("Payment initialization failed. Try again.");
-  } finally {
-    setLoading(false);
-  }
-};
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+    } catch (error) {
+      console.error("Payment error:", error);
+      alert("Payment initialization failed. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  const handlePayWithCrypto = async (e: React.MouseEvent) => {
+    if (loading || payId) return;
 
-  const handlePayWithCrypto = async () => {
+    e.stopPropagation();
     try {
       setLoading(true);
       const ticketId = ticketType === "earlybird" ? 1 : 2;
@@ -138,10 +164,14 @@ const handlePayWithINR = async () => {
       };
 
       // Call Daimo API (placeholder for now)
-      const { data } = await axios.post("http://localhost:3000/payments/daimo-order", payload);
+      const { data } = await axios.post(
+        "http://localhost:3000/payments/create-order",
+        payload
+      );
 
       // Redirect or open Daimo Pay link
-      window.open(data.paymentLink, "_blank");
+      console.log(data);
+      setPayId(data.paymentId);
     } catch (error) {
       console.error("Crypto payment error:", error);
       alert("Failed to initiate crypto payment.");
@@ -149,6 +179,17 @@ const handlePayWithINR = async () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!payId) return;
+
+    const id = requestAnimationFrame(() => {
+      const btn = wrapperRef.current?.querySelector("button");
+      btn?.click(); // trigger daimo flow
+    });
+
+    return () => cancelAnimationFrame(id);
+  }, [payId]);
 
   return (
     <div className="max-w-3xl mx-auto p-6">
@@ -162,8 +203,18 @@ const handlePayWithINR = async () => {
         <h2 className="text-lg font-semibold mb-4">Select Ticket Type</h2>
         <div className="grid gap-4">
           {[
-            { type: "earlybird", label: "Early Bird", price: 999, desc: "Available until Dec 31, 2025" },
-            { type: "regular", label: "Regular", price: 1999, desc: "Standard pricing" },
+            {
+              type: "earlybird",
+              label: "Early Bird",
+              price: 999,
+              desc: "Available until Dec 31, 2025",
+            },
+            {
+              type: "regular",
+              label: "Regular",
+              price: 1999,
+              desc: "Standard pricing",
+            },
           ].map(({ type, label, price, desc }) => (
             <div
               key={type}
@@ -251,14 +302,18 @@ const handlePayWithINR = async () => {
               placeholder="Name *"
               className="border rounded-lg p-2"
               value={p.name}
-              onChange={(e) => handleParticipantChange(i, "name", e.target.value)}
+              onChange={(e) =>
+                handleParticipantChange(i, "name", e.target.value)
+              }
             />
             <input
               type="email"
               placeholder="Email *"
               className="border rounded-lg p-2"
               value={p.email}
-              onChange={(e) => handleParticipantChange(i, "email", e.target.value)}
+              onChange={(e) =>
+                handleParticipantChange(i, "email", e.target.value)
+              }
             />
           </div>
         </div>
@@ -294,13 +349,57 @@ const handlePayWithINR = async () => {
           >
             {loading ? "Processing..." : "Pay with INR (Razorpay)"}
           </button>
-          <button
+
+          <div
+            ref={wrapperRef}
             onClick={handlePayWithCrypto}
-            className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-            disabled={loading}
+            style={{ position: "relative", display: "inline-block" }}
+            aria-busy={loading}
           >
-            {loading ? "Processing..." : "Pay with Crypto (DaimoPay)"}
-          </button>
+            {loading && !payId && (
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  display: "grid",
+                  placeItems: "center",
+                  fontSize: 14,
+                  background: "rgba(255,255,255,0.6)",
+                  backdropFilter: "blur(2px)",
+                  zIndex: 10,
+                  pointerEvents: "none",
+                }}
+              >
+                Creating order…
+              </div>
+            )}
+            <DaimoPayButton
+              payId={payId}
+              //onOpen to be changed to onPaymentStarted
+              onOpen={() => {
+                console.log("Payment open: ");
+                fetch("http://localhost:3000/payments/verify", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    paymentType: "DAIMO",
+                    paymentId: payId,
+                  }),
+                }).catch(console.error);
+              }} /* Logs that will appear when the user initiated the payment */
+              onPaymentCompleted={(e) => {
+                console.log(e);
+                fetch("http://localhost:3000/payments/verify", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    paymentType: "DAIMO",
+                    paymentId: payId,
+                  }),
+                }).catch(console.error);
+              }} /* Logs that will appear when the user completed the payment */
+            />
+          </div>
         </div>
       </div>
     </div>
