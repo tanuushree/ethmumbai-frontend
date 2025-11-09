@@ -29,19 +29,21 @@ const BuyTickets: React.FC = () => {
 
   // handle quantity update
   const handleQuantityChange = (type: "inc" | "dec") => {
-    setQuantity((prev) => {
-      const newQuantity = type === "inc" ? prev + 1 : Math.max(1, prev - 1);
-      const diff = newQuantity - participants.length;
+    setQuantity((prevQty) => {
+      const newQuantity = type === "inc" ? prevQty + 1 : Math.max(1, prevQty - 1);
 
-      // Adjust participants array
-      if (diff > 0) {
-        setParticipants((prev) => [
-          ...prev,
-          ...Array(diff).fill({ name: "", email: "" }),
-        ]);
-      } else if (diff < 0) {
-        setParticipants((prev) => prev.slice(0, newQuantity));
-      }
+      setParticipants((prevParticipants) => {
+        const diff = newQuantity - prevParticipants.length;
+        if (diff > 0) {
+          return [
+            ...prevParticipants,
+            ...Array.from({ length: diff }, () => ({ name: "", email: "" })),
+          ];
+        } else if (diff < 0) {
+          return prevParticipants.slice(0, newQuantity);
+        }
+        return prevParticipants;
+      });
 
       return newQuantity;
     });
@@ -89,10 +91,10 @@ const BuyTickets: React.FC = () => {
     try {
       setLoading(true);
 
-      const ticketId = ticketType === "earlybird" ? 1 : 2;
+      const ticketTypeToSend = ticketType;
 
       const payload = {
-        ticketId,
+        ticketTypeToSend,
         buyerName: buyerInfo.name,
         buyerEmail: buyerInfo.email,
         buyerPhone: buyerInfo.phone,
@@ -152,10 +154,10 @@ const BuyTickets: React.FC = () => {
     e.stopPropagation();
     try {
       setLoading(true);
-      const ticketId = ticketType === "earlybird" ? 1 : 2;
+      const ticketTypeToSend = ticketType;
 
       const payload = {
-        ticketId,
+        ticketTypeToSend,
         buyerName: buyerInfo.name,
         buyerEmail: buyerInfo.email,
         buyerPhone: buyerInfo.phone,
