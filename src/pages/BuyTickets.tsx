@@ -5,7 +5,7 @@ import axios from "axios";
 import { DaimoPayButton } from "@daimo/pay";
 
 const BuyTickets: React.FC = () => {
-  const [ticketType, setTicketType] = useState<"earlybird" | "regular">(
+  const [ticketType, setTicketType] = useState<"earlybird" | "standard">(
     "earlybird"
   );
   const [quantity, setQuantity] = useState(1);
@@ -21,7 +21,7 @@ const BuyTickets: React.FC = () => {
 
   const ticketPrices = {
     earlybird: 999,
-    regular: 1999,
+    standard: 1999,
   };
 
   const [payId, setPayId] = useState<string>("");
@@ -94,7 +94,7 @@ const BuyTickets: React.FC = () => {
       const ticketTypeToSend = ticketType;
 
       const payload = {
-        ticketTypeToSend,
+        ticketType: ticketTypeToSend,
         buyerName: buyerInfo.name,
         buyerEmail: buyerInfo.email,
         buyerPhone: buyerInfo.phone,
@@ -120,6 +120,7 @@ const BuyTickets: React.FC = () => {
         handler: async (response: any) => {
           try {
             await axios.post("http://localhost:3000/payments/verify", {
+              paymentType: "RAZORPAY",
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
@@ -157,7 +158,7 @@ const BuyTickets: React.FC = () => {
       const ticketTypeToSend = ticketType;
 
       const payload = {
-        ticketTypeToSend,
+        ticketType: ticketTypeToSend,
         buyerName: buyerInfo.name,
         buyerEmail: buyerInfo.email,
         buyerPhone: buyerInfo.phone,
@@ -212,15 +213,15 @@ const BuyTickets: React.FC = () => {
               desc: "Available until Dec 31, 2025",
             },
             {
-              type: "regular",
-              label: "Regular",
+              type: "standard",
+              label: "Standard",
               price: 1999,
               desc: "Standard pricing",
             },
           ].map(({ type, label, price, desc }) => (
             <div
               key={type}
-              onClick={() => setTicketType(type as "earlybird" | "regular")}
+              onClick={() => setTicketType(type as "earlybird" | "standard")}
               className={`border rounded-xl p-4 cursor-pointer transition ${
                 ticketType === type ? "border-black" : "border-gray-300"
               }`}
@@ -326,7 +327,7 @@ const BuyTickets: React.FC = () => {
         <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
         <div className="flex justify-between text-sm mb-2">
           <span>Ticket Type</span>
-          <span>{ticketType === "earlybird" ? "Early Bird" : "Regular"}</span>
+          <span>{ticketType === "earlybird" ? "Early Bird" : "Standard"}</span>
         </div>
         <div className="flex justify-between text-sm mb-2">
           <span>Price per ticket</span>
